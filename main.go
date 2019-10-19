@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"regexp"
 	"runtime"
 	"runtime/debug"
 	"strconv"
@@ -80,6 +81,7 @@ func main() {
 		locs := make(map[uint64]*profile.Location)
 		funcs := make(map[string]*profile.Function)
 		s := bufio.NewScanner(perfOut)
+		validID := regexp.MustCompile(`^.*:(\d+) .*==>.*:(\d+) .*$`)
 		getProc := func(pid int) *Proc {
 			p := procs[pid]
 			if p == nil {
@@ -130,17 +132,8 @@ func main() {
 					continue
 				}
 				tids[tid] = pid
-
-				pos := strings.Index(ln, " prev_pid=")
-				if pos == -1 {
-					fmt.Fprintf(os.Stderr, "failed to parse pid 4: %v\n", ln)
-					continue
-				}
-				pos += len(" prev_pid=")
-				i = pos
-				for ; ln[i] != ' '; i++ {
-				}
-				ptid, err := strconv.ParseUint(ln[pos:i], 10, 32)
+				subMatches := validID.FindStringSubmatch(ln)
+				ptid, err := strconv.ParseUint(subMatches[1], 10, 32)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "failed to parse pid 5: %v\n", ln)
 					continue
@@ -150,16 +143,7 @@ func main() {
 					ppid = ptid
 				}
 
-				pos = strings.Index(ln, " next_pid=")
-				if pos == -1 {
-					fmt.Fprintf(os.Stderr, "failed to parse pid 6: v\n", ln)
-					continue
-				}
-				pos += len(" next_pid=")
-				i = pos
-				for ; ln[i] != ' '; i++ {
-				}
-				ntid, err := strconv.ParseUint(ln[pos:i], 10, 32)
+				ntid, err := strconv.ParseUint(subMatches[2], 10, 32)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "failed to parse pid 7: v\n", ln)
 					continue
